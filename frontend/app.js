@@ -1,390 +1,323 @@
 // ====================
 // CONFIGURAZIONE
 // ====================
-const API_BASE_URL = 'https://my-first-api-vtlr.onrender.com';
-const API_TODOS_URL = `${API_BASE_URL}/todos/`;
-const API_REGISTER_URL = `${API_BASE_URL}/register`;
-const API_LOGIN_URL = `${API_BASE_URL}/login`;
+const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const API_BASE_URL = IS_LOCAL ? 'http://localhost:8000' : 'https://my-first-api-vtlr.onrender.com';
 
 // ====================
-// STATO DELL'APPLICAZIONE
+// STATO
 // ====================
-let currentUser = null;
-let authToken = localStorage.getItem('authToken') || null;
+let authToken = localStorage.getItem('authToken');
+let userEmail = localStorage.getItem('userEmail');
 
 // ====================
 // ELEMENTI DOM
 // ====================
-// Autenticazione
-const authSection = document.getElementById('auth-section');
-const appSection = document.getElementById('app-section');
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const authMessage = document.getElementById('auth-message');
-const logoutBtn = document.getElementById('logout-btn');
-const userEmailSpan = document.getElementById('user-email');
-
-// Todo App (esistente)
-const todoForm = document.getElementById('todo-form');
-const titleInput = document.getElementById('title');
-const descriptionInput = document.getElementById('description');
-const refreshButton = document.getElementById('refresh-btn');
-const todosContainer = document.getElementById('todos-container');
-const loadingElement = document.getElementById('loading');
-
-// Tabs
+const $ = (id) => document.getElementById(id);
+const authSection = $('auth-section');
+const appSection = $('app-section');
+const loginForm = $('login-form');
+const registerForm = $('register-form');
+const authMessage = $('auth-message');
+const todoForm = $('todo-form');
+const todosContainer = $('todos-container');
+const loadingElement = $('loading');
 const tabButtons = document.querySelectorAll('.tab-btn');
 const authForms = document.querySelectorAll('.auth-form');
 
 // ====================
-// UTILITY FUNCTIONS
+// UTILITY
 // ====================
-function showMessage(element, text, type = 'error') {
-    element.textContent = text;
-    element.className = `auth-message ${type}`;
-    element.style.display = 'block';
-    if (type === 'success') {
-        setTimeout(() => element.style.display = 'none', 3000);
-    }
+function showMessage(text, type = 'error') {
+    authMessage.textContent = text;           // textContent: mai HTML
+    authMessage.className = `auth-message ${type}`;
+    authMessage.style.display = 'block';
+    if (type === 'success') setTimeout(() => (authMessage.style.display = 'none'), 3000);
 }
 
-function showLoading() {
-    loadingElement.style.display = 'block';
-    todosContainer.innerHTML = '';
-}
-
-function hideLoading() {
-    loadingElement.style.display = 'none';
-}
-
-function setAuthToken(token) {
+function setSession(token, email) {
     authToken = token;
-    if (token) {
-        localStorage.setItem('authToken', token);
-    } else {
-        localStorage.removeItem('authToken');
-    }
-}
-
-// ====================
-// API FUNCTIONS (AGGIORNATE CON AUTH)
-// ====================
-async function apiRequest(url, options = {}) {
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-
-    // Aggiungi il token JWT se presente
-    if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-    }
-
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Errore sconosciuto' }));
-        throw new Error(error.detail || `HTTP error! Status: ${response.status}`);
-    }
-
-    return response.json();
-}
-
-async function fetchTodos() {
-    showLoading();
+    userEmail = email;
     try {
-        const todos = await apiRequest(API_TODOS_URL);
-        displayTodos(todos);
-    } catch (error) {
-        console.error('Error fetching todos:', error);
-        todosContainer.innerHTML = `
-            <li class="todo-item" style="border-left-color: #ff4757;">
-                <div class="todo-content">
-                    <h3><i class="fas fa-exclamation-triangle"></i> Errore</h3>
-                    <p>${error.message}</p>
-                </div>
-            </li>
-        `;
-    } finally {
-        hideLoading();
+        if (token) {
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('userEmail', email);
+        } else {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userEmail');
+        }
+    } catch (_) { /* storage non disponibile: la sessione dura solo finché la pagina è aperta */ }
+}
+
+function formatError(detail) {
+    if (Array.isArray(detail)) return detail.map((d) => d.msg).join('. ');
+    return typeof detail === 'string' ? detail : null;
+}
+
+function makeIcon(classes) {
+    const i = document.createElement('i');
+    i.className = classes;
+    return i;
+}
+
+function makeButton(className, iconClasses, label, onClick) {
+    const b = document.createElement('button');
+    b.className = className;
+    b.type = 'button';
+    b.append(makeIcon(iconClasses), ` ${label}`);
+    b.addEventListener('click', onClick);
+    return b;
+}
+
+// ====================
+// API
+// ====================
+async function apiRequest(path, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    let response;
+    try {
+        response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+    } catch (_) {
+        throw new Error('Server non raggiungibile. Se si sta avviando, riprova tra qualche secondo.');
     }
-}
 
-async function createTodo(title, description) {
-    return apiRequest(API_TODOS_URL, {
-        method: 'POST',
-        body: JSON.stringify({ title, description })
-    });
-}
-
-async function deleteTodo(id) {
-    return apiRequest(`${API_TODOS_URL}${id}`, {
-        method: 'DELETE'
-    });
-}
-
-// ====================
-// AUTHENTICATION FUNCTIONS
-// ====================
-async function loginUser(email, password) {
-    // NOTA: FastAPI OAuth2 si aspetta 'username' e 'password' nel form data
-    const formData = new FormData();
-    formData.append('username', email);
-    formData.append('password', password);
-
-    const response = await fetch(API_LOGIN_URL, {
-        method: 'POST',
-        body: formData  // Nota: NON usiamo JSON qui, ma FormData
-    });
-
+    if (response.status === 401 && authToken) {
+        showAuthSection();
+        throw new Error('Sessione scaduta, accedi di nuovo.');
+    }
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Credenziali errate' }));
-        throw new Error(error.detail || 'Login fallito');
+        const err = await response.json().catch(() => ({}));
+        throw new Error(formatError(err.detail) || `Errore ${response.status}`);
     }
-
     return response.json();
 }
 
-async function registerUser(email, password) {
-    return apiRequest(API_REGISTER_URL, {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-    });
+const fetchTodosApi = () => apiRequest('/todos/');
+const createTodoApi = (title, description) =>
+    apiRequest('/todos/', { method: 'POST', body: JSON.stringify({ title, description: description || null }) });
+const toggleTodoApi = (id, completed) =>
+    apiRequest(`/todos/${id}`, { method: 'PUT', body: JSON.stringify({ completed }) });
+const deleteTodoApi = (id) => apiRequest(`/todos/${id}`, { method: 'DELETE' });
+const registerApi = (email, password) =>
+    apiRequest('/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+
+function loginApi(email, password) {
+    const form = new FormData();   // OAuth2 di FastAPI vuole form data con "username"
+    form.append('username', email);
+    form.append('password', password);
+    return apiRequest('/login', { method: 'POST', body: form });
 }
 
 // ====================
-// UI FUNCTIONS
+// RENDERING (solo createElement/textContent: nessun innerHTML con dati utente)
 // ====================
-function displayTodos(todos) {
+function infoItem(title, text, color, iconClasses) {
+    const li = document.createElement('li');
+    li.className = 'todo-item';
+    li.style.borderLeftColor = color;
+    const content = document.createElement('div');
+    content.className = 'todo-content';
+    const h3 = document.createElement('h3');
+    h3.append(makeIcon(iconClasses), ` ${title}`);
+    const p = document.createElement('p');
+    p.textContent = text;
+    content.append(h3, p);
+    li.append(content);
+    return li;
+}
+
+function todoItem(todo) {
+    const li = document.createElement('li');
+    li.className = 'todo-item' + (todo.completed ? ' done' : '');
+    li.dataset.id = todo.id;
+
+    const content = document.createElement('div');
+    content.className = 'todo-content';
+    const h3 = document.createElement('h3');
+    h3.textContent = todo.title;
+    const p = document.createElement('p');
+    if (todo.description) {
+        p.textContent = todo.description;
+    } else {
+        const em = document.createElement('em');
+        em.textContent = 'Nessuna descrizione';
+        p.append(em);
+    }
+    content.append(h3, p);
+
+    const actions = document.createElement('div');
+    actions.className = 'todo-actions';
+    actions.append(
+        makeButton('toggle-btn', 'fas fa-check', todo.completed ? 'Riapri' : 'Fatto', () => handleToggle(todo)),
+        makeButton('delete-btn', 'fas fa-trash', 'Elimina', () => handleDelete(todo.id)),
+    );
+
+    li.append(content, actions);
+    return li;
+}
+
+function renderTodos(todos) {
+    todosContainer.replaceChildren();
     if (todos.length === 0) {
-        todosContainer.innerHTML = `
-            <li class="todo-item" style="border-left-color: #ffa502;">
-                <div class="todo-content">
-                    <h3><i class="fas fa-clipboard-list"></i> Nessun task</h3>
-                    <p>Aggiungi il tuo primo task usando il form sopra!</p>
-                </div>
-            </li>
-        `;
+        todosContainer.append(
+            infoItem('Nessun task', 'Aggiungi il tuo primo task usando il form sopra!', '#ffa502', 'fas fa-clipboard-list'),
+        );
         return;
     }
+    todosContainer.append(...todos.map(todoItem));
+}
 
-    todosContainer.innerHTML = todos.map(todo => `
-        <li class="todo-item" data-id="${todo.id}">
-            <div class="todo-content">
-                <h3>${todo.title}</h3>
-                ${todo.description ? `<p>${todo.description}</p>` : '<p><em>Nessuna descrizione</em></p>'}
-            </div>
-            <div class="todo-actions">
-                <button class="delete-btn" onclick="handleDelete(${todo.id})">
-                    <i class="fas fa-trash"></i> Elimina
-                </button>
-            </div>
-        </li>
-    `).join('');
+async function loadTodos() {
+    loadingElement.style.display = 'block';
+    todosContainer.replaceChildren();
+    try {
+        renderTodos(await fetchTodosApi());
+    } catch (error) {
+        todosContainer.append(infoItem('Errore', error.message, '#ff4757', 'fas fa-exclamation-triangle'));
+    } finally {
+        loadingElement.style.display = 'none';
+    }
 }
 
 function showAppSection() {
     authSection.style.display = 'none';
     appSection.style.display = 'block';
-    userEmailSpan.textContent = currentUser.email;
-    fetchTodos();
+    $('user-email').textContent = userEmail || 'Utente';
+    loadTodos();
 }
 
 function showAuthSection() {
+    setSession(null, null);
     authSection.style.display = 'block';
     appSection.style.display = 'none';
-    currentUser = null;
-    setAuthToken(null);
 }
 
 // ====================
-// EVENT HANDLERS
+// HANDLER
 // ====================
+async function withBusyButton(button, busyHtmlIcon, busyLabel, fn) {
+    const original = [...button.childNodes].map((n) => n.cloneNode(true));
+    button.replaceChildren(makeIcon(busyHtmlIcon), ` ${busyLabel}`);
+    button.disabled = true;
+    try {
+        return await fn();
+    } finally {
+        button.replaceChildren(...original);
+        button.disabled = false;
+    }
+}
+
 async function handleLogin(event) {
     event.preventDefault();
-    
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    
-    const submitBtn = loginForm.querySelector('button');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accesso...';
-    submitBtn.disabled = true;
-
-    try {
-        const data = await loginUser(email, password);
-        setAuthToken(data.access_token);
-        currentUser = { email };
-        showMessage(authMessage, 'Accesso effettuato!', 'success');
-        setTimeout(showAppSection, 1500);
-    } catch (error) {
-        showMessage(authMessage, error.message, 'error');
-    } finally {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }
+    const email = $('login-email').value.trim();
+    const password = $('login-password').value;
+    await withBusyButton(loginForm.querySelector('button'), 'fas fa-spinner fa-spin', 'Accesso...', async () => {
+        try {
+            const data = await loginApi(email, password);
+            setSession(data.access_token, email);
+            $('login-password').value = '';
+            showAppSection();
+        } catch (error) {
+            showMessage(error.message);
+        }
+    });
 }
 
 async function handleRegister(event) {
     event.preventDefault();
-    
-    const email = document.getElementById('register-email').value.trim();
-    const password = document.getElementById('register-password').value;
-    
+    const email = $('register-email').value.trim();
+    const password = $('register-password').value;
     if (password.length < 8) {
-        showMessage(authMessage, 'La password deve essere di almeno 8 caratteri', 'error');
+        showMessage('La password deve essere di almeno 8 caratteri');
         return;
     }
-
-    const submitBtn = registerForm.querySelector('button');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creazione...';
-    submitBtn.disabled = true;
-
-    try {
-        await registerUser(email, password);
-        showMessage(authMessage, 'Account creato! Ora puoi accedere.', 'success');
-        
-        // Switch automatico al tab login
-        document.querySelector('[data-tab="login"]').click();
-        document.getElementById('login-email').value = email;
-        document.getElementById('login-password').value = '';
-        document.getElementById('login-password').focus();
-    } catch (error) {
-        showMessage(authMessage, error.message, 'error');
-    } finally {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }
+    await withBusyButton(registerForm.querySelector('button'), 'fas fa-spinner fa-spin', 'Creazione...', async () => {
+        try {
+            await registerApi(email, password);
+            switchTab('login');
+            $('login-email').value = email;
+            $('login-password').value = '';
+            $('login-password').focus();
+            showMessage('Account creato! Ora puoi accedere.', 'success');
+        } catch (error) {
+            showMessage(error.message);
+        }
+    });
 }
 
 async function handleTodoSubmit(event) {
     event.preventDefault();
-
-    const title = titleInput.value.trim();
-    const description = descriptionInput.value.trim();
-
+    const title = $('title').value.trim();
+    const description = $('description').value.trim();
     if (!title) {
         alert('Inserisci un titolo per il task.');
         return;
     }
+    await withBusyButton(todoForm.querySelector('button'), 'fas fa-spinner fa-spin', 'Aggiungo...', async () => {
+        try {
+            await createTodoApi(title, description);
+            $('title').value = '';
+            $('description').value = '';
+            await loadTodos();
+        } catch (error) {
+            alert(`Errore: ${error.message}`);
+        }
+    });
+}
 
-    const submitButton = todoForm.querySelector('button');
-    const originalText = submitButton.innerHTML;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aggiungo...';
-    submitButton.disabled = true;
-
+async function handleToggle(todo) {
     try {
-        await createTodo(title, description);
-        titleInput.value = '';
-        descriptionInput.value = '';
-        await fetchTodos();
+        await toggleTodoApi(todo.id, !todo.completed);
+        await loadTodos();
     } catch (error) {
         alert(`Errore: ${error.message}`);
-    } finally {
-        submitButton.innerHTML = originalText;
-        submitButton.disabled = false;
     }
 }
 
 async function handleDelete(id) {
-    if (!confirm('Sei sicuro di voler eliminare questo task?')) {
-        return;
-    }
-
-    const todoItem = document.querySelector(`.todo-item[data-id="${id}"]`);
-    if (todoItem) {
-        todoItem.style.opacity = '0.5';
-        todoItem.style.pointerEvents = 'none';
-    }
-
+    if (!confirm('Sei sicuro di voler eliminare questo task?')) return;
     try {
-        await deleteTodo(id);
-        await fetchTodos();
+        await deleteTodoApi(id);
+        await loadTodos();
     } catch (error) {
         alert(`Errore: ${error.message}`);
-        if (todoItem) {
-            todoItem.style.opacity = '1';
-            todoItem.style.pointerEvents = 'auto';
-        }
     }
 }
 
 function handleLogout() {
-    if (confirm('Sei sicuro di voler uscire?')) {
-        showAuthSection();
-        // Pulisci i form
-        document.getElementById('login-email').value = '';
-        document.getElementById('login-password').value = '';
-        authMessage.style.display = 'none';
-    }
+    if (!confirm('Sei sicuro di voler uscire?')) return;
+    showAuthSection();
+    $('login-email').value = '';
+    $('login-password').value = '';
+    authMessage.style.display = 'none';
 }
 
-// ====================
-// TAB SWITCHING
-// ====================
 function switchTab(tabName) {
-    // Aggiorna bottoni
-    tabButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-
-    // Aggiorna form
-    authForms.forEach(form => {
-        form.classList.toggle('active', form.id === `${tabName}-form`);
-    });
-
-    // Pulisci messaggi
+    tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabName));
+    authForms.forEach((form) => form.classList.toggle('active', form.id === `${tabName}-form`));
     authMessage.style.display = 'none';
 }
 
 // ====================
-// INITIALIZATION
+// INIT
 // ====================
 function init() {
-    // Setup tabs
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
-
-    // Setup event listeners
+    tabButtons.forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
     loginForm.addEventListener('submit', handleLogin);
     registerForm.addEventListener('submit', handleRegister);
     todoForm.addEventListener('submit', handleTodoSubmit);
-    refreshButton.addEventListener('click', fetchTodos);
-    logoutBtn.addEventListener('click', handleLogout);
+    $('refresh-btn').addEventListener('click', loadTodos);
+    $('logout-btn').addEventListener('click', handleLogout);
 
-    // Make handleDelete globally available
-    window.handleDelete = handleDelete;
+    $('api-url').textContent = API_BASE_URL;
+    const docsLink = $('docs-link');
+    if (docsLink) docsLink.href = `${API_BASE_URL}/docs`;
 
-    // Check API URL
-    const apiUrlElement = document.getElementById('api-url');
-    if (apiUrlElement) {
-        apiUrlElement.textContent = API_BASE_URL;
-    } else {
-        console.warn('Elemento con id "api-url" non trovato nel DOM.');
-    }
-    if (apiUrlElement) {
-        // Crea un link cliccabile invece di testo semplice
-        apiUrlElement.innerHTML = `<a href="${API_BASE_URL}" target="_blank" style="color: #4776E6;">${API_BASE_URL}</a>`;
-    }
-
-    // Check if user is already logged in
-    if (authToken) {
-        // Qui potresti fare una chiamata per validare il token
-        // Per ora mostriamo direttamente l'app
-        currentUser = { email: localStorage.getItem('userEmail') || 'Utente' };
-        showAppSection();
-    } else {
-        showAuthSection();
-    }
-
-    console.log('Todo App with Auth initialized!');
-    console.log('Backend URL:', API_BASE_URL);
+    if (authToken) showAppSection();   // se il token è scaduto, il primo 401 riporta al login
+    else showAuthSection();
 }
 
-// Start the app
 document.addEventListener('DOMContentLoaded', init);

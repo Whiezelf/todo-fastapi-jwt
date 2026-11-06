@@ -1,7 +1,22 @@
 services:
   - type: web
     name: my-first-api
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    runtime: python
     plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false   # incolla l'URL di Postgres (Neon/Supabase/Render) dalla dashboard
+      - key: ALLOWED_ORIGINS
+        value: https://my-first-api-frontend.onrender.com
+
+  - type: web
+    name: my-first-api-frontend
+    runtime: static
+    staticPublishPath: ./frontend

@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+      POSTGRES_DB: todo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo -d todo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?imposta SECRET_KEY nel file .env}
+      DATABASE_URL: postgresql://todo:todo@db:5432/todo
+      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
+
+volumes:
+  pgdata:

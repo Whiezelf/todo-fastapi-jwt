@@ -342,3 +342,25 @@ footer a:hover {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* ==================== TASK COMPLETATI ==================== */
+.todo-item.done .todo-content h3 {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.toggle-btn {
+    background: #2ed573;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+}
+
+.toggle-btn:hover {
+    background: #26c066;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #8E54E9;
+    outline-offset: 2px;
+}

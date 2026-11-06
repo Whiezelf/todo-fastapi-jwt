@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +11,7 @@
     <div class="container">
         <header>
             <h1><i class="fas fa-tasks"></i> My Todo List</h1>
-            <p class="subtitle">A simple frontend for your FastAPI backend. API URL: <code id="api-url">Loading...</code></p>
+            <p class="subtitle">Frontend per la Todo API (FastAPI). API: <code id="api-url">...</code></p>
         </header>
 
         <main>
@@ -68,7 +68,7 @@
                         <h2><i class="fas fa-tasks"></i> I Tuoi Task</h2>
                         <button id="refresh-btn"><i class="fas fa-sync-alt"></i> Aggiorna</button>
                     </div>
-                    <div id="loading">Caricamento in corso...</div>
+                    <div id="loading">Caricamento in corso... (il server gratuito può impiegare fino a un minuto ad avviarsi)</div>
                     <ul id="todos-container">
                         <!-- I todo verranno inseriti qui -->
                     </ul>
@@ -78,7 +78,7 @@
 
         <footer>
             <p>Backend powered by <strong>FastAPI</strong> | Deployed on <strong>Render</strong></p>
-            <p>View the <a href="/docs" target="_blank">API Documentation (Swagger UI)</a></p>
+            <p>View the <a id="docs-link" href="#" target="_blank" rel="noopener">API Documentation (Swagger UI)</a></p>
         </footer>
     </div>
 
