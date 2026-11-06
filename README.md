@@ -5,7 +5,7 @@ Progetto di apprendimento: backend REST in Python, frontend in JavaScript vanill
 
 **Demo online**
 - Applicazione: https://my-first-api-frontend.onrender.com/
-- Documentazione API (Swagger): https://my-first-api-vtlr.onrender.com
+- Documentazione API (Swagger): https://my-first-api-vtlr.onrender.com/docs
 
 > Il server è sul piano gratuito di Render: il primo caricamento può richiedere circa un minuto.
 
