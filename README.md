@@ -3,7 +3,11 @@
 Applicazione full-stack di gestione task con registrazione, login e dati separati per utente.
 Progetto di apprendimento: backend REST in Python, frontend in JavaScript vanilla.
 
-<!-- Aggiungi qui i link alla demo SOLO dopo aver verificato che funzionano. -->
+**Demo online**
+- Applicazione: https://my-first-api-frontend.onrender.com/
+- Documentazione API (Swagger): https://my-first-api-vtlr.onrender.com
+
+> Il server è sul piano gratuito di Render: il primo caricamento può richiedere circa un minuto.
 
 ## Funzionalità
 - Registrazione e login con token JWT (scadenza 30 minuti), password salvate con bcrypt
