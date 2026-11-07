@@ -15,3 +15,7 @@ def create_user(db: Session, user: UserCreate):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+def delete_user(db: Session, user: User):
+    db.delete(user)  # il cascade elimina anche i suoi todo
+    db.commit()

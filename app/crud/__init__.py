@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Todo
 from ..schemas import TodoCreate, TodoUpdate
-from .user import create_user, get_user_by_email  # noqa: F401
+from .user import create_user, delete_user, get_user_by_email  # noqa: F401
 
 
 def get_todo(db: Session, todo_id: int, owner_id: int):

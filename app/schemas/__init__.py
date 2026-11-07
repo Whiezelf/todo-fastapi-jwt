@@ -28,6 +28,10 @@ class UserInDB(UserBase):
     is_active: bool
 
 
+class AccountDelete(BaseModel):
+    password: str
+
+
 # ---------- Token ----------
 class Token(BaseModel):
     access_token: str

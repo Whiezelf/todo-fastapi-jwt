@@ -84,6 +84,19 @@ def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+@app.delete("/me", status_code=204)
+@limiter.limit("3/minute")
+def delete_account(
+    request: Request,
+    payload: schemas.AccountDelete,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(payload.password, current_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Password errata")
+    crud.delete_user(db, current_user)
+
+
 @app.post("/register", response_model=schemas.UserInDB, status_code=201)
 @limiter.limit("3/minute")
 def register(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):

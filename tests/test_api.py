@@ -83,3 +83,28 @@ def test_users_cannot_access_each_others_todos(client):
     assert client.delete(f"/todos/{todo_id}", headers=h_b).status_code == 404
     assert client.get("/todos/", headers=h_b).json() == []
     assert client.get(f"/todos/{todo_id}", headers=h_a).status_code == 200
+
+
+def test_delete_account_wrong_password(client):
+    h, email = new_user(client)
+    r = client.request("DELETE", "/me", json={"password": "sbagliata-123"}, headers=h)
+    assert r.status_code == 401
+
+    # l'utente deve esistere ancora: il login con la password giusta funziona
+    r = client.post("/login", data={"username": email, "password": PASSWORD})
+    assert r.status_code == 200
+
+
+def test_delete_account_success(client):
+    h, email = new_user(client)
+    client.post("/todos/", json={"title": "Da cancellare"}, headers=h)
+
+    r = client.request("DELETE", "/me", json={"password": PASSWORD}, headers=h)
+    assert r.status_code == 204
+
+    # login con le stesse credenziali deve fallire: l'account non esiste più
+    r = client.post("/login", data={"username": email, "password": PASSWORD})
+    assert r.status_code == 401
+
+    # il token vecchio non deve funzionare più, perché l'utente non c'è
+    assert client.get("/todos/", headers=h).status_code == 401

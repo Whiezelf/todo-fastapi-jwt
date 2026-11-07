@@ -92,7 +92,8 @@ async function apiRequest(path, options = {}) {
         const err = await response.json().catch(() => ({}));
         throw new Error(formatError(err.detail) || `Errore ${response.status}`);
     }
-    return response.json();
+    if (response.status === 204) return null;
+        return response.json();
 }
 
 const fetchTodosApi = () => apiRequest('/todos/');
@@ -103,6 +104,8 @@ const toggleTodoApi = (id, completed) =>
 const deleteTodoApi = (id) => apiRequest(`/todos/${id}`, { method: 'DELETE' });
 const registerApi = (email, password) =>
     apiRequest('/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+const deleteAccountApi = (password) =>
+    apiRequest('/me', { method: 'DELETE', body: JSON.stringify({ password }) });
 
 function loginApi(email, password) {
     const form = new FormData();   // OAuth2 di FastAPI vuole form data con "username"
@@ -295,6 +298,31 @@ function handleLogout() {
     authMessage.style.display = 'none';
 }
 
+function openDeleteAccountModal() {
+    $('delete-account-password').value = '';
+    $('delete-account-modal').style.display = 'flex';
+}
+
+function closeDeleteAccountModal() {
+    $('delete-account-modal').style.display = 'none';
+}
+
+async function handleDeleteAccountSubmit(event) {
+    event.preventDefault();
+    const password = $('delete-account-password').value;
+    if (!confirm('Confermi la cancellazione definitiva dell\'account?')) return;
+
+    try {
+        await deleteAccountApi(password);
+        closeDeleteAccountModal();
+        alert('Account eliminato.');
+        showAuthSection();
+    } catch (error) {
+        alert(`Errore: ${error.message}`);
+    }
+
+}
+
 function switchTab(tabName) {
     tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabName));
     authForms.forEach((form) => form.classList.toggle('active', form.id === `${tabName}-form`));
@@ -311,6 +339,9 @@ function init() {
     todoForm.addEventListener('submit', handleTodoSubmit);
     $('refresh-btn').addEventListener('click', loadTodos);
     $('logout-btn').addEventListener('click', handleLogout);
+    $('delete-account-btn').addEventListener('click', openDeleteAccountModal);
+    $('delete-account-cancel').addEventListener('click', closeDeleteAccountModal);
+    $('delete-account-form').addEventListener('submit', handleDeleteAccountSubmit);
 
     $('api-url').textContent = API_BASE_URL;
     const docsLink = $('docs-link');

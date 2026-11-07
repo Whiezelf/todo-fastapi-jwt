@@ -5,7 +5,7 @@ Progetto di apprendimento: backend REST in Python, frontend in JavaScript vanill
 
 **Demo online**
 - Applicazione: https://my-first-api-frontend.onrender.com/
-- Documentazione API (Swagger): https://my-first-api-vtlr.onrender.com
+- Documentazione API (Swagger): https://my-first-api-vtlr.onrender.com/docs
 
 > Il server è sul piano gratuito di Render: il primo caricamento può richiedere circa un minuto.
 
@@ -16,7 +16,7 @@ Progetto di apprendimento: backend REST in Python, frontend in JavaScript vanill
 - Frontend senza framework; i dati utente vengono mostrati con `textContent` (nessun `innerHTML`)
 
 ## Stack
-Python 3.12 · FastAPI · SQLAlchemy 2 · PostgreSQL (SQLite in locale) · bcrypt · python-jose · pytest · Docker
+Python 3.12+ · FastAPI · SQLAlchemy 2 · PostgreSQL (SQLite in locale) · bcrypt · python-jose · pytest · Docker
 
 ## Avvio con Docker
 ```bash
