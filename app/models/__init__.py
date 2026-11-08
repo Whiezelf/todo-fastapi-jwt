@@ -30,6 +30,7 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     todos = relationship("Todo", back_populates="owner", cascade="all, delete-orphan")
+    reset_tokens = relationship("PasswordResetToken", cascade="all, delete-orphan")
 
 
 class Todo(Base):
