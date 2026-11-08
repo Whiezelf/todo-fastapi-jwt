@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, create_engine
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 
@@ -42,3 +42,13 @@ class Todo(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     owner = relationship("User", back_populates="todos")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False, nullable=False)

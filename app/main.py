@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime, timezone
+from .email import send_password_reset_email
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from . import crud, schemas
 from .models import Base, SessionLocal, User, engine
-from .security import ALGORITHM, SECRET_KEY, create_access_token, verify_password
+from .security import ALGORITHM, SECRET_KEY, create_access_token, get_password_hash, verify_password
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -117,6 +118,34 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
             headers={"WWW-Authenticate": "Bearer"},
         )
     return {"access_token": create_access_token(data={"sub": user.email}), "token_type": "bearer"}
+
+
+@app.post("/password-reset/request", status_code=202)
+@limiter.limit("3/hour")
+def request_password_reset(request: Request, payload: schemas.PasswordResetRequest, db: Session = Depends(get_db)):
+    user = crud.get_user_by_email(db, email=payload.email)
+    if user:
+        raw_token = crud.create_reset_token(db, user.id)
+        reset_link = f"{os.getenv('FRONTEND_URL', '')}#reset-password?token={raw_token}"
+        try:
+            send_password_reset_email(user.email, reset_link)
+        except Exception:
+            logger.exception("Invio email di reset fallito")
+    # Risposta identica in ogni caso: non riveliamo se l'email esiste nel sistema
+    return {"message": "Se l'indirizzo è registrato, riceverai un'email con le istruzioni."}
+
+
+@app.post("/password-reset/confirm")
+@limiter.limit("5/hour")
+def confirm_password_reset(request: Request, payload: schemas.PasswordResetConfirm, db: Session = Depends(get_db)):
+    entry = crud.get_valid_reset_token(db, payload.token)
+    if entry is None:
+        raise HTTPException(status_code=400, detail="Token non valido o scaduto")
+    user = db.query(User).filter(User.id == entry.user_id).first()
+    user.hashed_password = get_password_hash(payload.new_password)
+    crud.mark_token_used(db, entry)
+    db.commit()
+    return {"message": "Password aggiornata con successo."}
 
 
 @app.post("/todos/", response_model=schemas.TodoInDB, status_code=201)

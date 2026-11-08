@@ -68,3 +68,21 @@ class TodoInDB(TodoBase):
     id: int
     owner_id: int
     completed: bool
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_rules(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La password deve essere di almeno 8 caratteri")
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("La password non può superare i 72 byte")
+        return v

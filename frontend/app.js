@@ -93,7 +93,7 @@ async function apiRequest(path, options = {}) {
         throw new Error(formatError(err.detail) || `Errore ${response.status}`);
     }
     if (response.status === 204) return null;
-        return response.json();
+    return response.json();
 }
 
 const fetchTodosApi = () => apiRequest('/todos/');
@@ -113,6 +113,11 @@ function loginApi(email, password) {
     form.append('password', password);
     return apiRequest('/login', { method: 'POST', body: form });
 }
+
+const requestPasswordResetApi = (email) =>
+    apiRequest('/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
+const confirmPasswordResetApi = (token, newPassword) =>
+    apiRequest('/password-reset/confirm', { method: 'POST', body: JSON.stringify({ token, new_password: newPassword }) });
 
 // ====================
 // RENDERING (solo createElement/textContent: nessun innerHTML con dati utente)
@@ -320,7 +325,61 @@ async function handleDeleteAccountSubmit(event) {
     } catch (error) {
         alert(`Errore: ${error.message}`);
     }
+}
 
+function openForgotPasswordModal() {
+    $('forgot-password-email').value = '';
+    $('forgot-password-modal').style.display = 'flex';
+}
+
+function closeForgotPasswordModal() {
+    $('forgot-password-modal').style.display = 'none';
+}
+
+async function handleForgotPasswordSubmit(event) {
+    event.preventDefault();
+    const email = $('forgot-password-email').value.trim();
+    try {
+        const data = await requestPasswordResetApi(email);
+        closeForgotPasswordModal();
+        alert(data.message);  // messaggio generico dal backend, sempre lo stesso per sicurezza
+    } catch (error) {
+        alert(`Errore: ${error.message}`);
+    }
+}
+
+let currentResetToken = null;
+
+function openResetPasswordModal(token) {
+    currentResetToken = token;
+    $('reset-password-new').value = '';
+    $('reset-password-modal').style.display = 'flex';
+}
+
+async function handleResetPasswordSubmit(event) {
+    event.preventDefault();
+    const newPassword = $('reset-password-new').value;
+    if (newPassword.length < 8) {
+        alert('La password deve essere di almeno 8 caratteri.');
+        return;
+    }
+    try {
+        await confirmPasswordResetApi(currentResetToken, newPassword);
+        $('reset-password-modal').style.display = 'none';
+        alert('Password aggiornata. Ora puoi accedere con la nuova password.');
+        location.hash = '';  // pulisce il token dall'URL, non deve restare lì
+        showAuthSection();
+    } catch (error) {
+        alert(`Errore: ${error.message}`);
+    }
+}
+
+function checkResetTokenInUrl() {
+    // Il link nell'email porta a #reset-password?token=XYZ
+    const match = location.hash.match(/^#reset-password\?token=(.+)$/);
+    if (match) {
+        openResetPasswordModal(decodeURIComponent(match[1]));
+    }
 }
 
 function switchTab(tabName) {
@@ -342,6 +401,12 @@ function init() {
     $('delete-account-btn').addEventListener('click', openDeleteAccountModal);
     $('delete-account-cancel').addEventListener('click', closeDeleteAccountModal);
     $('delete-account-form').addEventListener('submit', handleDeleteAccountSubmit);
+    $('forgot-password-link').addEventListener('click', (e) => { e.preventDefault(); openForgotPasswordModal(); });
+    $('forgot-password-cancel').addEventListener('click', closeForgotPasswordModal);
+    $('forgot-password-form').addEventListener('submit', handleForgotPasswordSubmit);
+    $('reset-password-form').addEventListener('submit', handleResetPasswordSubmit);
+
+    checkResetTokenInUrl();  // nel caso l'utente arrivi già con il link dall'email
 
     $('api-url').textContent = API_BASE_URL;
     const docsLink = $('docs-link');

@@ -19,7 +19,7 @@
             <section id="auth-section" class="auth-section">
                 <div class="auth-container">
                     <h2><i class="fas fa-user"></i> Accedi o Registrati</h2>
-                    
+
                     <div class="auth-tabs">
                         <button class="tab-btn active" data-tab="login">Login</button>
                         <button class="tab-btn" data-tab="register">Registrati</button>
@@ -30,6 +30,9 @@
                         <input type="email" id="login-email" placeholder="La tua email" required>
                         <input type="password" id="login-password" placeholder="Password" required>
                         <button type="submit"><i class="fas fa-sign-in-alt"></i> Accedi</button>
+                        <p style="text-align:center; margin-top:10px;">
+                            <a href="#" id="forgot-password-link" style="color:#4776E6; font-size:0.9rem;">Password dimenticata?</a>
+                        </p>
                     </form>
 
                     <!-- Form Registrazione -->
@@ -91,6 +94,34 @@
                     </ul>
                 </section>
             </section>
+
+            <!-- Modali del recupero password: fuori da auth-section e app-section,
+                 perché devono potersi aprire sia da loggati sia da non loggati -->
+            <div id="forgot-password-modal" class="modal" style="display:none;">
+                <div class="modal-content">
+                    <h3><i class="fas fa-key"></i> Recupera password</h3>
+                    <p>Inserisci la tua email: se registrata, riceverai un link per reimpostare la password.</p>
+                    <form id="forgot-password-form">
+                        <input type="email" id="forgot-password-email" placeholder="Email" required>
+                        <div class="modal-actions">
+                            <button type="button" id="forgot-password-cancel" class="logout-btn">Annulla</button>
+                            <button type="submit" class="delete-btn" style="background:#4776E6;">Invia</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="reset-password-modal" class="modal" style="display:none;">
+                <div class="modal-content">
+                    <h3><i class="fas fa-lock"></i> Imposta una nuova password</h3>
+                    <form id="reset-password-form">
+                        <input type="password" id="reset-password-new" placeholder="Nuova password (min. 8 caratteri)" required>
+                        <div class="modal-actions">
+                            <button type="submit" class="delete-btn" style="background:#4776E6;">Conferma</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </main>
 
         <footer>
